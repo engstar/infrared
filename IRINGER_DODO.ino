@@ -1,6 +1,6 @@
 //#define SHINSUNG
 //https://github.com/espressif/arduino-esp32/releases/download/1.0.0/package_esp32_dev_index.json
-#define VERSION "2.0.3"
+#define VERSION "2.04"
 #define DEFAULT_DROP 0.05        // rdrop 한방울의 무게
 #define DEFAULT_ZERO_SPEED 0.017 // 3cc/hr 이하이면 0
 #define DROP_TIME 10000          // 1분(60000)이상 떨어지지 않으면 0
@@ -145,6 +145,9 @@ struct Button
 Button wps_key = {25, 0, false};
 Button bat_alarm = {27, 0, false};
 Button pwr_chg = {12, 0, false};
+
+
+
 
 Button ir_rx = {17, 0, false};
 int pnIrRx = 17;
@@ -791,7 +794,71 @@ byte search_n_connect()
   }
   return 0;
 }
+/*
+ //최초 번젼에 있는 루틴 
+//struct Button
+//{
+//  const uint8_t PIN;
+//  uint32_t numberKeyPresses;
+//  bool pressed;
+//};
+Button SW_ON = {33, 0, false};
+Button SW_DOWN = {32, 0, false};
 
+
+void IRAM_ATTR isr5()
+{
+  SW_ON.numberKeyPresses += 1;
+  SW_ON.pressed = true;
+  //printf("Key Pressed\n");
+   delay(50);
+   Serial.println("SW_ON Input\n");
+   Serial.println(SW_ON.numberKeyPresses);
+  
+  if(SW_ON.numberKeyPresses%2){
+       // digitalWrite(15, 0);
+   
+  }
+  else{
+       // digitalWrite(15, 1);
+    
+  }
+
+}
+
+ 
+ void IRAM_ATTR isr6()
+{
+  SW_DOWN.numberKeyPresses += 1;
+  SW_DOWN.pressed = true;
+  //printf("Key Pressed\n");
+   delay(50);
+   Serial.println("SW_DOWN Input\n");
+   Serial.println(SW_DOWN.numberKeyPresses);
+  
+  if(SW_DOWN.numberKeyPresses%2){
+       // digitalWrite(15, 0);
+   
+  }
+  else{
+       // digitalWrite(15, 1);
+    
+  }
+ 
+}
+
+#define BUTTON_PIN     26 // GIOP21 pin connected to button
+#define DEBOUNCE_TIME  50 // the debounce time in millisecond, increase this time if it still chatters
+
+// Variables will change:
+int lastSteadyState = LOW;       // the previous steady state from the input pin
+int lastFlickerableState = LOW;  // the previous flickerable state from the input pin
+int currentState;                // the current reading from the input pin
+
+// the following variables are unsigned longs because the time, measured in
+// milliseconds, will quickly become a bigger number than can be stored in an int.
+unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
+ */
 void setup() //su
 {
   int i;
@@ -1402,7 +1469,7 @@ void STC3115_get_id()
   printf("STC3115 ID=0x%X\n", Wire.read());
 }
 
-byte get_list()
+byte get_list()// 수정 된 부분 
 {
   byte x;
   char body[100] = { 0, };
@@ -1477,14 +1544,14 @@ byte send_data() //sd
   if (httpCode == 200)//400 잘못요청 401 권한없음,403 금지됨,404 찾을수 없음,500 서버오류, 503 서비스 불가
   {
     StaticJsonDocument<256>  doc;// tjio check
+ // StaticJsonBuffer<200> jsonBuffer;//v5
     http.GET();//tjio insert HTTP GET 요청을 보냅니다.
     String str = http.getString();//HTTP 요청의 응답 본문을 str 변수에 저장합니다.
- //   JsonObject doc = str.as<JsonObject>();
-    deserializeJson(doc, str);// str 즉 읽은값을 doc  스택에 집어넣는다.
+ //   JsonObject doc = str.as<JsonObject>();/v5    
 
     auto error = deserializeJson(doc, str);// 성공 ==0, 구문 분석 실패 -1 저장 
-    if (error == DeserializationError::Ok) {  
-    //if  (error && !error) {//?
+    if (error == DeserializationError::Ok) {//deserializeJson(doc, str);// str 즉 읽은값을 doc  스택에 집어넣는다.  
+    //if  (root.success() && !root["errors"].is<JsonObject>()){//v5
       String r_vol_max = doc["data"]["v1Monitoring"]["r_volume_max"];
       String r_vol_now = doc["data"]["v1Monitoring"]["r_volume_now"];
       _printf("v1Monitoring volume max : %d\n", r_vol_max.toInt());
@@ -1523,6 +1590,7 @@ byte get_info()
   {
     const size_t capacity = 2*JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(6) + 120;
     DynamicJsonDocument doc(capacity);
+    //   DynamicJsonBuffer jsonBuffer(capacity);//v5
     http.GET();//tjio insert
     String str = http.getString();
     deserializeJson(doc, str);//tjio check
@@ -1530,6 +1598,9 @@ byte get_info()
     auto error = deserializeJson(doc, str);//tjio check 
 
     if (doc["data"]["v1Device"].is<JsonObject>()) {
+    //JsonObject& root = jsonBuffer.parseObject(str);//v5
+
+    //if (root["data"]["v1Device"].is<JsonObject>()) {//v5
       String r_vol_max = doc["data"]["v1Device"]["r_volume_max"];
       String r_vol_now = doc["data"]["v1Device"]["r_volume_now"];
       String r_adrop = doc["data"]["v1Device"]["r_adrop"];
