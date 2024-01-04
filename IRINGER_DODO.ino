@@ -143,7 +143,7 @@ struct Button
 };
 
 Button wps_key = {25, 0, false};
-Button bat_alarm = {27, 0, false};
+//Button bat_alarm = {27, 0, false};
 Button pwr_chg = {12, 0, false};
 
 
@@ -183,13 +183,7 @@ void IRAM_ATTR isr1()
   //printf("Key Pressed\n");
 }
 
-void IRAM_ATTR isr2()
-{
-  bat_alarm.numberKeyPresses += 1;
-  bat_alarm.pressed = true;
-  //printf("bat_alarm Pressed\n");
-}
-
+ 
 void IRAM_ATTR isr3()
 {
   pwr_chg.numberKeyPresses += 1;
@@ -869,8 +863,7 @@ void setup() //su
 
   pinMode(wps_key.PIN, INPUT_PULLUP);
   attachInterrupt(wps_key.PIN, isr1, FALLING);
-  pinMode(bat_alarm.PIN, INPUT_PULLUP);
-  attachInterrupt(bat_alarm.PIN, isr2, FALLING);
+ 
   pinMode(pwr_chg.PIN, INPUT_PULLUP);
   attachInterrupt(pwr_chg.PIN, isr3, FALLING);
   pinMode(boot, INPUT_PULLUP);
