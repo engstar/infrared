@@ -1062,11 +1062,7 @@ void check_serial()
         String target = command.substring(6);
         serial_print(target);
       }
-      else if(command.startsWith("write "))
-      {
-        String target = command.substring(6);
-        serial_write(target);
-      }
+
       else if (command.equals("log"))
       {
         show_serial_log = !show_serial_log;  
@@ -1087,58 +1083,9 @@ void check_serial()
   }
 }
 
-void serial_write(String target) 
-{
-  if (target.startsWith("sn ")) 
-  {
-    char serial_number[SN_SIZE + 1] = {0,};
-    String value = target.substring(3);
-    value.toCharArray(serial_number, sizeof(serial_number));
-    //printf("check_serial()2 %s\n",c);
-    write_eeprom_chars(SN_ADDR, serial_number, sizeof(serial_number));
-    memcpy(serial_num, serial_number, SN_SIZE + 1);
-    _printf("write sn: %s\n", serial_number);
-  }
-  else if (target.startsWith("ap "))
-  {
-    char ssid[SSID_SIZE + 1] = {0,};
-    char pw[PW_SIZE + 1] = {0,};
-    String value = target.substring(3);
-    int colon_index = value.indexOf(':');
-    if (colon_index == -1) {
-      Serial.println("ERROR! This method needs colon(:).");
-    }
-    value.substring(0, colon_index).toCharArray(ssid, SSID_SIZE);
-    write_eeprom_chars(AP_ADDR, ssid, SSID_SIZE);
-    value.substring(colon_index + 1).toCharArray(pw, PW_SIZE);
-    //printf("check_serial()2 %s\n",c);
-    write_eeprom_chars(PW_ADDR, pw, PW_SIZE);
-    read_ap();
-    WiFi.disconnect();
-    _printf("Write ssid %s with password %s\n", ssid, pw);
-  }
-  else if (target.startsWith("url "))
-  {
-    String value = target.substring(4);
-    value.toCharArray(host_url, HOST_URL_LENGTH);
-    write_eeprom_chars(HOST_ADDR, host_url, HOST_URL_LENGTH);
-    WiFi.disconnect();
-    _printf("Write host: %s\n", host_url);
-  }
-  else
-  {
-    _printf("Target %s is wrong!!\n", target);
-    _printf("Available targets are \"sn\",\"ap\",\"url\"");
-  }
-}
+
 
 void serial_print(String str) {
-  if (str.equals("sn")) 
-  {
-    char serial_number[SN_SIZE + 1] = {0,};
-    read_eeprom_chars(serial_num, SN_ADDR, SN_SIZE);
-    _printf("sn: %s\n", serial_num);
-  }
   if (str.equals("ver")) 
   {
     _printf("firmware version: %s\n", VERSION);
@@ -1156,35 +1103,11 @@ void serial_print(String str) {
     _printf("SIGNAL_CHK: %d\n",SIGNAL_CHK);
     Serial.println(server_connected ? "connected" : "disconnected");
   }
-  else if (str.equals("url"))
-  {
-    char host_url[HOST_URL_LENGTH] = { 0, };
-    read_eeprom_chars(host_url, HOST_ADDR, HOST_URL_LENGTH);
-    _printf("host: %s\n", host_url);
-  }
+
   else
   {
     _printf("Target %s is wrong!!\n", str);
     _printf("Available targets are \"sn\",\"ap\",\"aps\", \"network\", \"url\", \"ver\"");
-  }
-}
-
-void read_eeprom_chars(char* target, int32_t addr, int32_t target_size) {
-  int i;
-  char c;
-  for (i = 0; i < target_size; i++)
-  {
-    c = readEEPROM(addr + i);
-    if (c == 0xff || (c == 0x00 && i == 0))
-      return;
-    target[i] = c;
-  }
-}
-
-void write_eeprom_chars(int32_t addr, char* value, int32_t value_size) {
-  for (int i = 0; i < value_size; i++)
-  {
-    writeEEPROM(addr + i, value[i]);
   }
 }
 
