@@ -164,14 +164,14 @@ Ticker timer;
 #include <stdio.h>
 #include <stdarg.h>
 
-void _printf(const char *s, ...)
+void _printf(const char *s, ...)//stdio.h stdarg.h 헤더 필요 ...  가변인자를 나타냄 
 {
-  va_list args;
-  va_start(args, s);
-  int n = vsnprintf(NULL, 0, s, args);
+  va_list args;//함수롤 전달되는 인수들은 스택에 저장하고 가변 srgs  선언  이 포인터가 각 인자의 시작주소를 가리키게 됩니다.
+  va_start(args, s);//va_list로 만들어진 포인터에게 가변인자 중 첫 번째 인자의 주소를 가르쳐주는 중요한 매크로
+  int n = vsnprintf(NULL, 0, s, args);//호출한 후 문자열이 잘 종료됐는지 확인합니다.
   char *str = new char[n + 1];
-  vsprintf(str, s, args);
-  va_end(args);
+  vsprintf(str, s, args);//vsprintf는 sprintf와 유사한 동작
+  va_end(args);//가변인수를 다읽으후 뒷정리 
   Serial.print(str);
   delete[] str;
 }
@@ -789,7 +789,7 @@ byte search_n_connect()
   return 0;
 }
 /*
- //최초 번젼에 있는 루틴 
+//최초 번젼에 있는 루틴 
 //struct Button
 //{
 //  const uint8_t PIN;
@@ -855,8 +855,6 @@ unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
  */
 void setup() //su
 {
-  int i;
-
   delay(1000);
   Serial.begin(115200);
   Serial.println("setup() Start");
@@ -884,53 +882,25 @@ void setup() //su
     digitalWrite(led_power, LOW);
   }
 
-
-#ifdef SERIAL_TEST
-  while (1)
-  {
-    check_serial();
-  }
-#endif
-
   g_RingerData.drop_per_sec = 0.0f;
   g_RingerData.r_volume_now = 0.0f;
   g_RingerData.nBat = 0;
 
-  
-
   Wire.begin(SDA1, SCL1, 100000); //STC3115
-  byte error;
+
   STC3115_get_id();
   STC3115_init();
   get_battery();
   // Set WiFi to station mode and disconnect from an AP if it was previously connected
-  WiFi.mode(WIFI_STA);
-/*
-  if (!EEPROM.begin(EEPROM_SIZE))
-  {
-    while (1)
-      ;
-    {
-      Serial.println("failed to initialise EEPROM");
-      delay(1000);
-    }
-  }
- 
-  Serial.println("serial");
+  WiFi.mode(WIFI_STA);//클라이언트 모드 공유기(AP)
   read_sn();
-   Serial.println("Ap");
-  read_ap();
-   Serial.println("pw");
-  read_pw();
-   Serial.println("eeprom");
-  read_eeprom_chars(host_url, HOST_ADDR, HOST_URL_LENGTH);
-  */
-  _printf("tj host_url %s\n", host_url);
-  
+  _printf("tj1 host_url %s\n", host_url);
+   
   init_tft();
   display_main();
+  Serial.println("LCD 초기화면 표시합니다.");
   print_data();
-  check_serial();
+ 
 
  // read_ap_list();
 
@@ -948,15 +918,14 @@ void setup() //su
     get_list();
   }
   // memset(ap_list, 0, sizeof(ap_list));
-}
+}//setup end 
 
 
 byte connect_ap(char* ap, char* pw)
 {
   _printf("func connect_ap connect to %s\n", ap);
   wifiMulti.addAP(ap, pw);
-  check_serial();
-  Serial.print("Try to connect:tjio ");
+   Serial.print("Try to connect:tjio ");
   Serial.println(ap);
   return 0;
 }
@@ -1038,46 +1007,6 @@ bool calc_drop()
   return need_to_update;
 }
 
-void check_serial()
-{
-  if (Serial.available())
-  {
-    String s1;
-    s1 = Serial.readString();
-    int index = s1.indexOf("#");
-    Serial.print(s1);
-
-    if (s1.startsWith("$") && index != -1)
-    {
-      String command = s1.substring(1, index);
-      if(command.startsWith("print "))
-      {
-        String target = command.substring(6);
-        serial_print(target);
-      }
-
-      else if (command.equals("log"))
-      {
-        show_serial_log = !show_serial_log;  
-      }
-      else if (command.equals("debug"))
-      {
-        print_debug = !print_debug;
-      }
-      else
-      {
-        Serial.println("Available command: \"print\", \"write\", \"log\", \"debug\"");
-      }
-    }
-    else
-    {
-      Serial.println("If you want to input some command then it should start with \"$\" and end with \"#\".");
-    }
-  }
-}
-
-
-
 void serial_print(String str) {
   if (str.equals("ver")) 
   {
@@ -1106,19 +1035,6 @@ void serial_print(String str) {
 
 void read_sn()
 {
-  //printf("read_sn() start\n");
-  int i;
-  char c[SN_SIZE + 1] = {0};
-  for (i = 0; i < SN_SIZE; i++)
-  {
-    c[i] = readEEPROM(SN_ADDR + i);
-    if (c[0] == 0xff)
-      break;
-    if (c[i] == 0x0)
-      break;
-  }
-  _printf("serial num %s with length %d\n", c, i);
-  if (i == 0) {
     byte mac[6];
     WiFi.macAddress(mac);
     Serial.print(mac[3],HEX);
@@ -1134,13 +1050,10 @@ void read_sn()
     new_serial[9] = base64[(num >> 12) % 64];
     new_serial[10] = base64[(num >> 6) % 64];
     new_serial[11] = base64[num % 64];
-    memcpy(serial_num, new_serial, 13);
+    memcpy(serial_num, new_serial, 13);//new_serial 값 13 바이트를 serial_num 복사한다.
     Serial.println(serial_num);
     return;
-  }
-  memcpy(serial_num, c, sizeof(c));
-  //printf("read_sn() serial_num1=%s\n",serial_num);
-}
+ }
 
 /**
    AP_ADDR 에서 값을 읽어와서 default ap 에 저장
@@ -1313,47 +1226,31 @@ void get_battery() //ba
   byte data[25], i, error;
   int value;
   word bat_cnt;
-
-  //STC3115_get_id();
-  //  printf("bat_cnt=%lu\n",STC3115_readWord(0x08));
-  //if(bat_cnt<3) return;
   Wire.beginTransmission(I2C_ADDR);
   Wire.write(0);
   error = Wire.endTransmission(true);
-  //printf("error=%u\n",error);
   Wire.requestFrom(I2C_ADDR, 25, true);
   for (i = 0; i < 25; i++)
   {
     data[i] = Wire.read();
-    //printf("%u:%02X\n",i,data[i]);
   }
   //printf("\n");
   value = data[5];
   value = (value << 8) + data[4];
-  ///printf("bat_cnt=%lu\n",value);
-
-  /* current */
+    /* current */
   value = data[7];
   value = (value << 8) + data[6];
   value &= 0x3fff; /* mask unused bits */
-  //printf("value=%lu\n",value);
   if (value >= 0x2000)
     value = value - 0x4000;                              /* convert to signed value */
   current = STC3115_conv(value, CurrentFactor / RSENSE); /* result in mA */
-  //printf("STC3115 Current=%lu\n",current);
-
-  /* voltage */
+   /* voltage */
   value = data[9];
   value = (value << 8) + data[8];
-  //value=data[9]; value = value*256 + (int)data[8];
   value &= 0x0fff; /* mask unused bits */
-  //printf("value=%lu\n",value);
-  if (value >= 0x0800)
+   if (value >= 0x0800)
     value -= 0x1000;                          /* convert to signed value */
   value = STC3115_conv(value, VoltageFactor); /* result in mV */
-  //value=~(value-1);
-  //value &= 0x0fff; /* mask unused bits */
-  //value=value*22/10;
   if (value < 0)
     value = 0;
   voltage = value; /* result in mV */
@@ -1364,10 +1261,7 @@ void get_battery() //ba
   else if (voltage < MIN_VOL)
     voltage = MIN_VOL;
   g_RingerData.nBat = (voltage - MIN_VOL) * 100 / (MAX_VOL - MIN_VOL);
-  //g_RingerData.nBat=voltage/100;
-  //g_RingerData.nBat=voltage;
-  //printf("voltage=%lumV nBat=%lu%% max_voltage=%lu\n",value,g_RingerData.nBat,max_voltage);
-  //print_bat();
+
 }
 
 void STC3115_get_id()
@@ -1452,7 +1346,7 @@ byte send_data() //sd
     query,
     "mutation { v1Monitoring ( sensing: { sn: \\\"%s\\\", injectedAmount: %f, gtt: %f, battery: %d, restMinute: %d } ) { r_volume_max, r_volume_now } }",
     serial_num, g_RingerData.drop_cnt * g_RingerData.r_adrop, g_RingerData.drop_per_sec * 60.0, g_RingerData.nBat, g_RingerData.rest_min
-  );
+  );//Mutation: 저장된 데이터 수정하기 Create: 새로운 데이터 생성 Update: 기존의 데이터 수정 Delete: 기존의 데이터 삭제
   //body는 GraphQL 쿼리를 포함하는 문자열 배열입니다.query: GraphQL 쿼리의 이름입니다.
  
  int httpCode = post_graphql_query(body, query);
@@ -1565,8 +1459,7 @@ void loop()
   if (server_connected) {
     SIGNAL_CHK = 2;
   }
-  check_serial();
-
+  
   if (digitalRead(usb_detect)) //  power_led by usb_detect
   {
     digitalWrite(led_power, HIGH);
