@@ -164,17 +164,7 @@ Ticker timer;
 #include <stdio.h>
 #include <stdarg.h>
 
-void _printf(const char *s, ...)//stdio.h stdarg.h 헤더 필요 ...  가변인자를 나타냄 
-{
-  va_list args;//함수롤 전달되는 인수들은 스택에 저장하고 가변 srgs  선언  이 포인터가 각 인자의 시작주소를 가리키게 됩니다.
-  va_start(args, s);//va_list로 만들어진 포인터에게 가변인자 중 첫 번째 인자의 주소를 가르쳐주는 중요한 매크로
-  int n = vsnprintf(NULL, 0, s, args);//호출한 후 문자열이 잘 종료됐는지 확인합니다.
-  char *str = new char[n + 1];
-  vsprintf(str, s, args);//vsprintf는 sprintf와 유사한 동작
-  va_end(args);//가변인수를 다읽으후 뒷정리 
-  Serial.print(str);
-  delete[] str;
-}
+
 
 void IRAM_ATTR isr1()
 {
@@ -489,7 +479,7 @@ int old_rest_chk = 0;
 void print_data() // 화면 표시
 {
   if (show_serial_log) {
-    _printf("ml_per_hour %4.2f %4.2f\n", old_mlph, g_RingerData.ml_per_hour);
+    printf("ml_per_hour %4.2f %4.2f\n", old_mlph, g_RingerData.ml_per_hour);
     Serial.print("time_progress ");
     Serial.print(time_progress_old);
     Serial.print(" ");
@@ -500,7 +490,7 @@ void print_data() // 화면 표시
     Serial.println(time_rest);
   }
 
-  if (SIGNAL_CHK != SIGNAL_CHK_OLD) {
+  if (SIGNAL_CHK != SIGNAL_CHK_OLD) {//0 Wifi 연결 안됨 1 Wifi 연결됨 2 서버 연결 됨
     //연결상태
     tft.setCursor(FIRST_X + 2, FIRST_Y + 12);
     //spacex(2);
@@ -519,7 +509,7 @@ void print_data() // 화면 표시
     }
 
     tft.setCursor(FIRST_X + 2, FIRST_Y + 12);
-    if (SIGNAL_CHK == 0) 
+    if (SIGNAL_CHK == 0) //0 Wifi 연결 안됨 1 Wifi 연결됨 2 서버 연결 됨
     {
       tft.setTextColor(ST7735_RED);
       tft.print("Wifi off");
@@ -589,7 +579,7 @@ void print_data() // 화면 표시
 
   if (old_bat != g_RingerData.nBat)
   {
-    _printf("old_bat %d: new_bat %d\n", old_bat, g_RingerData.nBat);
+    printf("old_bat %d: new_bat %d\n", old_bat, g_RingerData.nBat);
     tft.setFont(&FreeSerifItalic9pt7b);
     tft.setTextColor(ST7735_BLACK);
     tft.setCursor(FIRST_X + 62, FIRST_Y + 12);
@@ -717,7 +707,7 @@ void test_eeprom()
 byte search_n_connect()
 {
   int k;
-  char searched_ap[SSID_SIZE + 1] = {0}; //검색된 SSID
+  char searched_ap[SSID_SIZE + 1] = {0}; //검색된 SSID   SSID SIZE=30
   char c2[SSID_SIZE + 1] = {0}; //저장된 SSID
   char c3[PW_SIZE + 1] = {0}; //저장된 PW
 
@@ -894,21 +884,19 @@ void setup() //su
   // Set WiFi to station mode and disconnect from an AP if it was previously connected
   WiFi.mode(WIFI_STA);//클라이언트 모드 공유기(AP)
   read_sn();
-  _printf("tj1 host_url %s\n", host_url);
-   
+  printf("host_url %s\n",host_url);
   init_tft();
-  display_main();
-  Serial.println("LCD 초기화면 표시합니다.");
-  print_data();
+  display_main();//초기 디스플레이 설정
+  
+  print_data();//show_serial_log  에의해서 출력 for debug
  
-
  // read_ap_list();
 
-  if (ap_list_count > 0 && ap_list_count < MAX_INDEX) {
-    SIGNAL_CHK = search_n_connect();
-  }
+//  if (ap_list_count > 0 && ap_list_count < MAX_INDEX) {
+    SIGNAL_CHK = search_n_connect();// wifi 검색
+//  }
 
-  if (SIGNAL_CHK == 0) {
+  if (SIGNAL_CHK == 0) {//0 Wifi 연결 안됨 1 Wifi 연결됨 2 서버 연결 됨
     connect_ap(default_ap, default_pw);
     delay(1000);
   }
@@ -923,7 +911,7 @@ void setup() //su
 
 byte connect_ap(char* ap, char* pw)
 {
-  _printf("func connect_ap connect to %s\n", ap);
+  printf("func connect_ap connect to %s\n", ap);
   wifiMulti.addAP(ap, pw);
    Serial.print("Try to connect:tjio ");
   Serial.println(ap);
@@ -1007,32 +995,6 @@ bool calc_drop()
   return need_to_update;
 }
 
-void serial_print(String str) {
-  if (str.equals("ver")) 
-  {
-    _printf("firmware version: %s\n", VERSION);
-  }
-  else if (str.equals("ap"))
-  {
-    read_ap();
-  }
-  else if (str.equals("aps"))
-  {
-    read_ap_list();
-  }
-  else if (str.equals("network"))
-  {
-    _printf("SIGNAL_CHK: %d\n",SIGNAL_CHK);
-    Serial.println(server_connected ? "connected" : "disconnected");
-  }
-
-  else
-  {
-    _printf("Target %s is wrong!!\n", str);
-    _printf("Available targets are \"sn\",\"ap\",\"aps\", \"network\", \"url\", \"ver\"");
-  }
-}
-
 void read_sn()
 {
     byte mac[6];
@@ -1074,42 +1036,6 @@ void read_ap()
   memcpy(default_ap, c, sizeof(c));
   Serial.print("read default ap ");
   Serial.println(c);
-}
-
-void read_ap_list()
-{
-  byte *ptr;
-  ap_list_count = readEEPROM(INDEX_ADDR);
-  if ((ap_list_count != 0) && (ap_list_count <= MAX_INDEX)) //리스트가 있으면
-  {
-    ptr = &ap_list[0][0];
-    for (int i = 0; i < ap_list_count * (SSID_SIZE + PW_SIZE); i++)
-    {
-      *ptr = readEEPROM(i);
-      ptr++;
-    }
-  }
-  else
-  {
-    Serial.println("There is no aps in EEPROM.");
-  }
-}
-
-void read_pw()
-{
-  int i;
-  char c[PW_SIZE] = {0};
-  for (i = 0; i < PW_SIZE; i++)
-  {
-    c[i] = readEEPROM(PW_ADDR + i);
-    if (c[0] == 0xff)
-    {
-      //printf("default_pw=%s\n",default_pw);
-      return;
-    }
-  }
-  memcpy(default_pw, c, sizeof(c));
-  //printf("default_pw=%s\n",default_pw);
 }
 
 void save_ml(String str) {
@@ -1324,7 +1250,7 @@ int post_graphql_query(char* body, char* query) {
 
   sprintf(body, "{ \"query\": \"%s\" }", query);
 
-  _printf("POST %s\n %s\n", graphql_url, body);
+  printf("POST %s\n %s\n", graphql_url, body);
   return http.POST(body);
 }
 
@@ -1364,7 +1290,7 @@ byte send_data() //sd
     //if  (root.success() && !root["errors"].is<JsonObject>()){//v5
       String r_vol_max = doc["data"]["v1Monitoring"]["r_volume_max"];
       String r_vol_now = doc["data"]["v1Monitoring"]["r_volume_now"];
-      _printf("v1Monitoring volume max : %d\n", r_vol_max.toInt());
+      printf("v1Monitoring volume max : %d\n", r_vol_max.toInt());
       g_RingerData.r_volume_max = r_vol_max.toInt();
       x = 1;
     } else {
@@ -1380,17 +1306,15 @@ byte send_data() //sd
     
     x = 0;
   }
-
   http.end();
   return x;
-  //return 1;
 }
 
 byte get_info()
 {
   byte x = 0;
-  char query[200] = { 0, };
-  char body[220] = {0, };
+  char query[200] = { 0, };// Your GraphQL query
+  char body[220] = {0, };//Your body data for the POST request
 
   sprintf(query, "query { v1Device(sn:\\\"%s\\\", battery: %d){ r_volume_max, r_volume_now, r_adrop, ordered_gtt, min_gtt, max_gtt }}", serial_num, g_RingerData.nBat);
 
@@ -1426,7 +1350,7 @@ byte get_info()
       g_RingerData.is_monitoring = g_RingerData.r_volume_max > 0;
       
       g_RingerData.drop_cnt = (g_RingerData.r_volume_max - g_RingerData.r_volume_now) / g_RingerData.r_adrop;
-      _printf("%d %f %f\n", g_RingerData.r_volume_max, g_RingerData.r_volume_now, g_RingerData.r_adrop );
+      printf("%d %f %f\n", g_RingerData.r_volume_max, g_RingerData.r_volume_now, g_RingerData.r_adrop );
 
       save_ml(r_vol_max);
       Serial.println(str);
@@ -1457,7 +1381,7 @@ byte get_info()
 void loop()
 {
   if (server_connected) {
-    SIGNAL_CHK = 2;
+    SIGNAL_CHK = 2;//0 Wifi 연결 안됨 1 Wifi 연결됨 2 서버 연결 됨
   }
   
   if (digitalRead(usb_detect)) //  power_led by usb_detect
@@ -1503,30 +1427,30 @@ void loop()
 
     if (upload_counter == 0 && server_connected)
     {
-      if (g_RingerData.r_volume_max == 0) {
-        server_connected = get_info();
-      } else if (send_data() == 1) {
-        err_cnt = 0;
-      } else {
-        err_cnt++;
-        printf("err_cnt=%lu\n", err_cnt);
-        if (err_cnt == 5)
-        {
-          err_cnt = 0;
-          server_connected = false;
-          thirty_counter = 0;
-        }
+      if (g_RingerData.r_volume_max == 0) {//값이 설정되지 않으면 
+        server_connected = get_info();//연결 1
       }
-
+      else if (send_data() == 1) {
+        err_cnt = 0;
+      }
+      else {
+          err_cnt++;
+          printf("err_cnt=%lu\n", err_cnt);
+          if (err_cnt == 5)
+          {
+            err_cnt = 0;
+            server_connected = false;
+            thirty_counter = 0;
+          }
+        }
       // Deep-Sleep 시작
-     
-    }
+     }
 
     if (!server_connected && thirty_counter == 0)
     {
       if ((wifiMulti.run() == WL_CONNECTED))
       {
-        if (SIGNAL_CHK < 1)
+        if (SIGNAL_CHK < 1)//0 Wifi 연결 안됨 1 Wifi 연결됨 2 서버 연결 됨
         {
           SIGNAL_CHK = 1;
         }
