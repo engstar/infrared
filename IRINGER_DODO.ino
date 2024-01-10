@@ -65,7 +65,7 @@ char host_url[HOST_URL_LENGTH] = "https://iringer.kr:8443/";
 char base64[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 char default_ap[SSID_SIZE + 1] = {DEFAULT_AP};
 char default_pw[PW_SIZE + 1] = {DEFAULT_PW};
-char serial_num[SN_SIZE + 1] = {0, };
+char serial_num[SN_SIZE + 1] = {0, };//21 자 
 
 //인터넷연결체크
 int SIGNAL_CHK = 0; // 0 Wifi 연결 안됨 1 Wifi 연결됨 2 서버 연결 됨
@@ -310,7 +310,6 @@ void print_num3_2(uint16_t n)
   //tft.print(n);
   tft.print(n);
 }
-
 void print_num4x(uint16_t n)
 {
   if (n < 1000)
@@ -423,6 +422,7 @@ void init_tft()
   tft.setTextColor(ST7735_BLUE);
   tft.setTextSize(1);
 }
+
 
 void display_main()
 {
@@ -888,7 +888,7 @@ void setup() //su
   init_tft();
   display_main();//초기 디스플레이 설정
   
-  print_data();//show_serial_log  에의해서 출력 for debug
+  print_data();//show_serial_log  에의해서 일부 출력 for debug
  
  // read_ap_list();
 
@@ -903,7 +903,7 @@ void setup() //su
 
   if (wifiMulti.run() == WL_CONNECTED) {
     server_connected = get_info();
-    get_list();
+//    get_list();//tjio remove 
   }
   // memset(ap_list, 0, sizeof(ap_list));
 }//setup end 
@@ -1085,19 +1085,6 @@ void STC3115_writeWord(byte addr, word d)
   Wire.endTransmission(true);
 }
 
-/*void STC3115_readWord(byte addr, word *data)
-  {
-  byte error;
-
-  Wire.beginTransmission(I2C_ADDR);
-  Wire.write(addr);
-  error=Wire.endTransmission(true);
-  Wire.requestFrom(I2C_ADDR, 2, true);
-   data=Wire.read();
-   data=*data<<8 + Wire.read()
-  printf("STC3115 read=0x%X\n",*data);
-  }*/
-
 word STC3115_readWord(byte addr)
 {
   byte error;
@@ -1147,7 +1134,7 @@ static int STC3115_conv(short value, unsigned short factor)
   return (v);
 }
 
-void get_battery() //ba
+void get_battery()  
 {
   byte data[25], i, error;
   int value;
@@ -1205,42 +1192,6 @@ void STC3115_get_id()
   printf("STC3115 ID=0x%X\n", Wire.read());
 }
 
-byte get_list()// 수정 된 부분 
-{
-  byte x;
-  char body[100] = { 0, };
-  char query[200] = { 0,};
-
-  Serial.println("get_list from server");
-
-  int httpCode = post_graphql_query(body,query);
-
-  if (httpCode == 200)
-  {
-    const int capacity = JSON_ARRAY_SIZE(20) + 20 * JSON_OBJECT_SIZE(2);
-    StaticJsonDocument<capacity> jsonBuffer;
-    http.GET();//tjio insert
-    String str = http.getString();
-    deserializeJson(jsonBuffer, str);
-
-    auto error = deserializeJson(jsonBuffer, str);
-    if (error) {
-    Serial.print(F("deserializeJson() failed with code "));
-    Serial.println(error.c_str());
-    return 1;
-    }
-  }
-  else
-  {
-    Serial.print("get_list error ");
-    Serial.println(httpCode);
-    x = 0;
-  }
-
-  http.end();
-  return x;
-}
-
 int post_graphql_query(char* body, char* query) {
   char graphql_url[HOST_URL_LENGTH + 8] = { 0, };
   sprintf(graphql_url, "%sgraphql/", host_url);
@@ -1251,8 +1202,11 @@ int post_graphql_query(char* body, char* query) {
   sprintf(body, "{ \"query\": \"%s\" }", query);
 
   printf("POST %s\n %s\n", graphql_url, body);
+  Serial.print("바디:");
+  Serial.println(body);
   return http.POST(body);
 }
+
 
 
 byte send_data() //sd
@@ -1273,21 +1227,16 @@ byte send_data() //sd
     "mutation { v1Monitoring ( sensing: { sn: \\\"%s\\\", injectedAmount: %f, gtt: %f, battery: %d, restMinute: %d } ) { r_volume_max, r_volume_now } }",
     serial_num, g_RingerData.drop_cnt * g_RingerData.r_adrop, g_RingerData.drop_per_sec * 60.0, g_RingerData.nBat, g_RingerData.rest_min
   );//Mutation: 저장된 데이터 수정하기 Create: 새로운 데이터 생성 Update: 기존의 데이터 수정 Delete: 기존의 데이터 삭제
-  //body는 GraphQL 쿼리를 포함하는 문자열 배열입니다.query: GraphQL 쿼리의 이름입니다.
  
  int httpCode = post_graphql_query(body, query);
 
-  if (httpCode == 200)//400 잘못요청 401 권한없음,403 금지됨,404 찾을수 없음,500 서버오류, 503 서비스 불가
+  if (httpCode == 200)//400 잘못요청 401 권한없음,403 금지됨,404 찾을수 없음,500 서버오류/*  { 불가
   {
+/*  {
     StaticJsonDocument<256>  doc;// tjio check
- // StaticJsonBuffer<200> jsonBuffer;//v5
-    http.GET();//tjio insert HTTP GET 요청을 보냅니다.
     String str = http.getString();//HTTP 요청의 응답 본문을 str 변수에 저장합니다.
- //   JsonObject doc = str.as<JsonObject>();/v5    
-
     auto error = deserializeJson(doc, str);// 성공 ==0, 구문 분석 실패 -1 저장 
     if (error == DeserializationError::Ok) {//deserializeJson(doc, str);// str 즉 읽은값을 doc  스택에 집어넣는다.  
-    //if  (root.success() && !root["errors"].is<JsonObject>()){//v5
       String r_vol_max = doc["data"]["v1Monitoring"]["r_volume_max"];
       String r_vol_now = doc["data"]["v1Monitoring"]["r_volume_now"];
       printf("v1Monitoring volume max : %d\n", r_vol_max.toInt());
@@ -1297,8 +1246,25 @@ byte send_data() //sd
       Serial.print("Error");
       Serial.print(str);
       x = 0;
+ {    } 
+  }*/
+
+    StaticJsonBuffer<200> jsonBuffer;
+    String str = http.getString();
+    JsonObject &root = jsonBuffer.parseObject(str);
+    if  (root.success() && !root["errors"].is<JsonObject>()) {
+      String r_vol_max = root["data"]["v1Monitoring"]["r_volume_max"];
+      String r_vol_now = root["data"]["v1Monitoring"]["r_volume__now"];
+      printf("v1Monitoring volume max : %d\n", r_vol_max.toInt());
+      g_RingerData.r_volume_max = r_vol_max.toInt();
+      x = 1;
+    } else {
+      Serial.print("Error");
+      Serial.print(str);
+      x = 0;
     } 
-  }
+ }
+  
   else
   {
     Serial.print("send_data error with code ");
@@ -1322,19 +1288,15 @@ byte get_info()
 
   if (httpCode == 200)
   {
+    /*
     const size_t capacity = 2*JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(6) + 120;
     DynamicJsonDocument doc(capacity);
-    //   DynamicJsonBuffer jsonBuffer(capacity);//v5
-    http.GET();//tjio insert
     String str = http.getString();
     deserializeJson(doc, str);//tjio check
 
     auto error = deserializeJson(doc, str);//tjio check 
 
     if (doc["data"]["v1Device"].is<JsonObject>()) {
-    //JsonObject& root = jsonBuffer.parseObject(str);//v5
-
-    //if (root["data"]["v1Device"].is<JsonObject>()) {//v5
       String r_vol_max = doc["data"]["v1Device"]["r_volume_max"];
       String r_vol_now = doc["data"]["v1Device"]["r_volume_now"];
       String r_adrop = doc["data"]["v1Device"]["r_adrop"];
@@ -1351,7 +1313,6 @@ byte get_info()
       
       g_RingerData.drop_cnt = (g_RingerData.r_volume_max - g_RingerData.r_volume_now) / g_RingerData.r_adrop;
       printf("%d %f %f\n", g_RingerData.r_volume_max, g_RingerData.r_volume_now, g_RingerData.r_adrop );
-
       save_ml(r_vol_max);
       Serial.println(str);
       print_data();
@@ -1362,6 +1323,26 @@ byte get_info()
       Serial.print("Graphql Error ");
       Serial.println(str);
     }
+ */
+    // if...(){ 
+
+    StaticJsonBuffer<200> jsonBuffer;
+    String str = http.getString();
+    JsonObject &root = jsonBuffer.parseObject(str);
+    Serial.println(str);
+    if  (root.success() && !root["errors"].is<JsonObject>()) {
+      String r_vol_max = root["data"]["v1Monitoring"]["r_volume_max"];
+      String r_vol_now = root["data"]["v1Monitoring"]["r_volume_now"];
+      printf("v1Monitoring volume max : %d\n", r_vol_max.toInt());
+      g_RingerData.r_volume_max = r_vol_max.toInt();
+      x = 1;
+      Serial.print("Str값:");
+      Serial.print(str);
+    } else {
+      Serial.print("Error");
+
+      x = 0;
+    } 
   }
   else
   {
@@ -1377,6 +1358,7 @@ byte get_info()
   }
   return x;
 }
+
 
 void loop()
 {
@@ -1395,7 +1377,7 @@ void loop()
 
   if (wps_key.pressed == 1)
   {
-    get_info();
+    get_info();//r_vol_max  저장
     wps_key.pressed = 0;
   }
 
@@ -1405,26 +1387,34 @@ void loop()
     STC3115_init();
   }
 
+
   if (sec_flag) // 1초마다 실행
   {
-
     get_battery();
+
+    
     bool is_alert_report = calc_drop();
     if (g_RingerData.drop_cnt < 50 && g_RingerData.drop_cnt % 5 == 0) {
       is_alert_report = true;
     }
+
+    
     if (!g_RingerData.is_monitoring) {
       is_alert_report = false;
     }
+
+    
     print_data();
-    upload_counter++;
+    upload_counter++;// 0부터 증가 
+
+    
     if (upload_counter > 29 || (is_alert_report && upload_counter > 4))
     {
       upload_counter = 0;
     }
 
-    sec_flag = 0;
 
+    sec_flag = 0;
     if (upload_counter == 0 && server_connected)
     {
       if (g_RingerData.r_volume_max == 0) {//값이 설정되지 않으면 
@@ -1446,7 +1436,8 @@ void loop()
       // Deep-Sleep 시작
      }
 
-    if (!server_connected && thirty_counter == 0)
+    //30초마다 와이파이 체크   
+    if (!server_connected && thirty_counter == 0)// 서버 연결이 끊어졌고 0초 일때마다 진행 
     {
       if ((wifiMulti.run() == WL_CONNECTED))
       {
@@ -1461,11 +1452,12 @@ void loop()
         
         SIGNAL_CHK = 0;
         connect_ap(default_ap, default_pw);
-        //와이파이 체크 끝
-      } // else 끝
-    }   // thirty_counter 체크 끝
+    
+      }  
+    }   
+    
 
-    if (thirty_counter < 30)
+    if (thirty_counter < 30)//30 초 마다 와이파이 검색을 위해 
     {
       thirty_counter++;
     }
@@ -1473,5 +1465,7 @@ void loop()
     {
       thirty_counter = 0;
     }
-  } // fsec
+
+    
+  } // set_flag
 }
