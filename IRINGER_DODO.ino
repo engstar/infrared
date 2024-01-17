@@ -902,7 +902,8 @@ void setup() //su
   }
 
   if (wifiMulti.run() == WL_CONNECTED) {
-    server_connected = get_info();
+//    server_connected = get_info();// tjio 수정 
+    send_data();
 //    get_list();//tjio remove 
   }
   // memset(ap_list, 0, sizeof(ap_list));
@@ -1194,7 +1195,8 @@ void STC3115_get_id()
 
 int post_graphql_query(char* body, char* query) {
   char graphql_url[HOST_URL_LENGTH + 8] = { 0, };
-  sprintf(graphql_url, "%sgraphql/", host_url);
+//  sprintf(graphql_url, "%sgraphql/", host_url);
+  sprintf(graphql_url, "%smonitoring", host_url);//23.1.17 수정
   
   http.begin(graphql_url);
   http.addHeader("Content-Type", "application/json");
@@ -1221,15 +1223,22 @@ byte send_data() //sd
   {
     g_RingerData.drop_per_sec = 0;
   }
-
+/*
   sprintf(
     query,
     "mutation { v1Monitoring ( sensing: { sn: \\\"%s\\\", injectedAmount: %f, gtt: %f, battery: %d, restMinute: %d } ) { r_volume_max, r_volume_now } }",
     serial_num, g_RingerData.drop_cnt * g_RingerData.r_adrop, g_RingerData.drop_per_sec * 60.0, g_RingerData.nBat, g_RingerData.rest_min
   );//Mutation: 저장된 데이터 수정하기 Create: 새로운 데이터 생성 Update: 기존의 데이터 수정 Delete: 기존의 데이터 삭제
+ */
+  sprintf(
+    query,
+    "{ \\\"v1Monitoring\\\" : { \\\"sn\\\": \\\"%s\\\", \\\"injectedAmount\\\": %f, \\\"gtt\\\": %f, \\\"battery\\\": %d, \\\"restMinute\\\": %d } }",
+    serial_num, g_RingerData.drop_cnt * g_RingerData.r_adrop, g_RingerData.drop_per_sec * 60.0, g_RingerData.nBat, g_RingerData.rest_min
+  );//Mutation: 저장된 데이터 수정하기 Create: 새로운 데이터 생성 Update: 기존의 데이터 수정 Delete: 기존의 데이터 삭제
  
  int httpCode = post_graphql_query(body, query);
-
+    Serial.print("httpCode:");
+    Serial.println(httpCode);
   if (httpCode == 200)//400 잘못요청 401 권한없음,403 금지됨,404 찾을수 없음,500 서버오류/*  { 불가
   {
 /*  {
@@ -1248,13 +1257,17 @@ byte send_data() //sd
       x = 0;
  {    } 
   }*/
-
+server_connected=1;
     StaticJsonBuffer<200> jsonBuffer;
     String str = http.getString();
+     Serial.print("송신후:");
+     Serial.println(str);
     JsonObject &root = jsonBuffer.parseObject(str);
     if  (root.success() && !root["errors"].is<JsonObject>()) {
-      String r_vol_max = root["data"]["v1Monitoring"]["r_volume_max"];
-      String r_vol_now = root["data"]["v1Monitoring"]["r_volume__now"];
+//      String r_vol_max = root["data"]["v1Monitoring"]["r_volume_max"];
+//      String r_vol_now = root["data"]["v1Monitoring"]["r_volume__now"];
+      String r_vol_max = root["v1Monitoring"]["r_volume_max"];//23.1.17 수정
+      String r_vol_now = root["v1Monitoring"]["r_volume_now"];
       printf("v1Monitoring volume max : %d\n", r_vol_max.toInt());
       g_RingerData.r_volume_max = r_vol_max.toInt();
       x = 1;
@@ -1281,9 +1294,9 @@ byte get_info()
   byte x = 0;
   char query[200] = { 0, };// Your GraphQL query
   char body[220] = {0, };//Your body data for the POST request
-
+return 1;
+//  sprintf(query, "query { v1Device(sn:\\\"%s\\\", battery: %d){ r_volume_max, r_volume_now, r_adrop, ordered_gtt, min_gtt, max_gtt }}", serial_num, g_RingerData.nBat);
   sprintf(query, "query { v1Device(sn:\\\"%s\\\", battery: %d){ r_volume_max, r_volume_now, r_adrop, ordered_gtt, min_gtt, max_gtt }}", serial_num, g_RingerData.nBat);
-
   int httpCode = post_graphql_query(body, query);//body 쿼리를 포함하는 문자열 배열 query는 쿼리이름 
 
   if (httpCode == 200)
@@ -1331,8 +1344,12 @@ byte get_info()
     JsonObject &root = jsonBuffer.parseObject(str);
     Serial.println(str);
     if  (root.success() && !root["errors"].is<JsonObject>()) {
-      String r_vol_max = root["data"]["v1Monitoring"]["r_volume_max"];
-      String r_vol_now = root["data"]["v1Monitoring"]["r_volume_now"];
+//      String r_vol_max = root["data"]["v1Monitoring"]["r_volume_max"];
+//      String r_vol_now = root["data"]["v1Monitoring"]["r_volume_now"];
+
+      String r_vol_max = root["v1Monitoring"]["r_volume_max"];
+      String r_vol_now = root["v1Monitoring"]["r_volume_now"];
+      
       printf("v1Monitoring volume max : %d\n", r_vol_max.toInt());
       g_RingerData.r_volume_max = r_vol_max.toInt();
       x = 1;
@@ -1377,7 +1394,7 @@ void loop()
 
   if (wps_key.pressed == 1)
   {
-    get_info();//r_vol_max  저장
+ //   get_info();//r_vol_max  저장  tjio 수정
     wps_key.pressed = 0;
   }
 
@@ -1411,17 +1428,30 @@ void loop()
     if (upload_counter > 29 || (is_alert_report && upload_counter > 4))
     {
       upload_counter = 0;
+      printf("SIGNAL_CHK:%d\n",SIGNAL_CHK);
+      printf("server_connected:%d\n",server_connected); 
+      printf("upload_counter:%d\n",upload_counter);
+      Serial.println(g_RingerData.r_volume_max);
+      server_connected=1;
     }
 
 
     sec_flag = 0;
     if (upload_counter == 0 && server_connected)
     {
+      /*
       if (g_RingerData.r_volume_max == 0) {//값이 설정되지 않으면 
-        server_connected = get_info();//연결 1
+ //       server_connected = get_info();//연결 1 이 되면 connected  표시  tjio 수정 
       }
       else if (send_data() == 1) {
+        Serial.println("Send data 송신");
         err_cnt = 0;
+        
+      }*/
+      if (send_data() == 1) {
+        Serial.println("Send data 송신");
+        err_cnt = 0;
+        
       }
       else {
           err_cnt++;
@@ -1445,7 +1475,7 @@ void loop()
         {
           SIGNAL_CHK = 1;
         }
-        server_connected = get_info();
+//        server_connected = get_info();//tjio 수정 
       }
       else // 연결 안된 경우
       {
