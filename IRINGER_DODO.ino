@@ -113,8 +113,8 @@ String time_progress = "";
 
 typedef struct ringer
 {
-  uint16_t r_volume_max;
-  float r_volume_now;
+  uint16_t r_volume_max;// 설정용량
+  float r_volume_now;//남은용량
   float r_adrop;
   float drop_per_sec;
   float last_drop_per_sec;
@@ -778,71 +778,7 @@ byte search_n_connect()
   }
   return 0;
 }
-/*
-//최초 번젼에 있는 루틴 
-//struct Button
-//{
-//  const uint8_t PIN;
-//  uint32_t numberKeyPresses;
-//  bool pressed;
-//};
-Button SW_ON = {33, 0, false};
-Button SW_DOWN = {32, 0, false};
 
-
-void IRAM_ATTR isr5()
-{
-  SW_ON.numberKeyPresses += 1;
-  SW_ON.pressed = true;
-  //printf("Key Pressed\n");
-   delay(50);
-   Serial.println("SW_ON Input\n");
-   Serial.println(SW_ON.numberKeyPresses);
-  
-  if(SW_ON.numberKeyPresses%2){
-       // digitalWrite(15, 0);
-   
-  }
-  else{
-       // digitalWrite(15, 1);
-    
-  }
-
-}
-
- 
- void IRAM_ATTR isr6()
-{
-  SW_DOWN.numberKeyPresses += 1;
-  SW_DOWN.pressed = true;
-  //printf("Key Pressed\n");
-   delay(50);
-   Serial.println("SW_DOWN Input\n");
-   Serial.println(SW_DOWN.numberKeyPresses);
-  
-  if(SW_DOWN.numberKeyPresses%2){
-       // digitalWrite(15, 0);
-   
-  }
-  else{
-       // digitalWrite(15, 1);
-    
-  }
- 
-}
-
-#define BUTTON_PIN     26 // GIOP21 pin connected to button
-#define DEBOUNCE_TIME  50 // the debounce time in millisecond, increase this time if it still chatters
-
-// Variables will change:
-int lastSteadyState = LOW;       // the previous steady state from the input pin
-int lastFlickerableState = LOW;  // the previous flickerable state from the input pin
-int currentState;                // the current reading from the input pin
-
-// the following variables are unsigned longs because the time, measured in
-// milliseconds, will quickly become a bigger number than can be stored in an int.
-unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
- */
 void setup() //su
 {
   delay(1000);
@@ -941,6 +877,7 @@ bool check_need_to_update(float drop_speed) {
  **/
 bool calc_drop()
 {
+  Serial.println("Drop  count start");
   float a;
   float drop_speed = 0;
   bool need_to_update = false;
@@ -1209,7 +1146,9 @@ int post_graphql_query(char* body, char* query) {
   return http.POST(body);
 }
 
-
+  uint16_t r_volume_max_init;
+  float r_volume_now_init;
+  bool init_send=0;
 
 byte send_data() //sd
 {
@@ -1230,6 +1169,11 @@ byte send_data() //sd
     serial_num, g_RingerData.drop_cnt * g_RingerData.r_adrop, g_RingerData.drop_per_sec * 60.0, g_RingerData.nBat, g_RingerData.rest_min
   );//Mutation: 저장된 데이터 수정하기 Create: 새로운 데이터 생성 Update: 기존의 데이터 수정 Delete: 기존의 데이터 삭제
  */
+ g_RingerData.r_adrop=0.05;
+     Serial.print("g_RingerData.drop_cnt:");
+     Serial.println(g_RingerData.drop_cnt);
+     Serial.print("g_RingerData.r_adrop :");
+     Serial.println(g_RingerData.r_adrop);
   sprintf(
     query,
     "{ \\\"v1Monitoring\\\" : { \\\"sn\\\": \\\"%s\\\", \\\"injectedAmount\\\": %f, \\\"gtt\\\": %f, \\\"battery\\\": %d, \\\"restMinute\\\": %d } }",
@@ -1260,8 +1204,10 @@ byte send_data() //sd
 server_connected=1;
     StaticJsonBuffer<200> jsonBuffer;
     String str = http.getString();
-     Serial.print("송신후:");
+     Serial.print("송신후 query :");
      Serial.println(str);
+     Serial.print("송신후 body :");
+     Serial.println(body);
     JsonObject &root = jsonBuffer.parseObject(str);
     if  (root.success() && !root["errors"].is<JsonObject>()) {
 //      String r_vol_max = root["data"]["v1Monitoring"]["r_volume_max"];
@@ -1269,7 +1215,11 @@ server_connected=1;
       String r_vol_max = root["v1Monitoring"]["r_volume_max"];//23.1.17 수정
       String r_vol_now = root["v1Monitoring"]["r_volume_now"];
       printf("v1Monitoring volume max : %d\n", r_vol_max.toInt());
-      g_RingerData.r_volume_max = r_vol_max.toInt();
+      
+      if(r_vol_max.toInt()){
+        g_RingerData.r_volume_max = r_vol_max.toInt();
+      }
+      
       x = 1;
     } else {
       Serial.print("Error");
@@ -1291,70 +1241,41 @@ server_connected=1;
 
 byte get_info()
 {
+ 
   byte x = 0;
   char query[200] = { 0, };// Your GraphQL query
   char body[220] = {0, };//Your body data for the POST request
-return 1;
+ 
 //  sprintf(query, "query { v1Device(sn:\\\"%s\\\", battery: %d){ r_volume_max, r_volume_now, r_adrop, ordered_gtt, min_gtt, max_gtt }}", serial_num, g_RingerData.nBat);
-  sprintf(query, "query { v1Device(sn:\\\"%s\\\", battery: %d){ r_volume_max, r_volume_now, r_adrop, ordered_gtt, min_gtt, max_gtt }}", serial_num, g_RingerData.nBat);
-  int httpCode = post_graphql_query(body, query);//body 쿼리를 포함하는 문자열 배열 query는 쿼리이름 
 
+  sprintf(query, "{ \\\"v1Monitoring\\\" : { \\\"sn\\\": \\\"%s\\\", \\\"injectedAmount\\\": %f, \\\"gtt\\\": %f, \\\"battery\\\": %d, \\\"restMinute\\\": %d } }",
+    serial_num, g_RingerData.drop_cnt * g_RingerData.r_adrop, g_RingerData.drop_per_sec * 60.0, g_RingerData.nBat, g_RingerData.rest_min
+  );//Mutation: 저장된 데이터 수정하기 Create: 새로운 데이터 생성 Update: 기존의 데이터 수정 Delete: 기존의 데이터 삭제
+ 
+  
+  int httpCode = post_graphql_query(body, query);//body 쿼리를 포함하는 문자열 배열 query는 쿼리이름 
+     Serial.print("GET_INFO()실행후:");//TJIO 수정 
+     Serial.println(body);//TJIO 수정 
+     
   if (httpCode == 200)
   {
-    /*
-    const size_t capacity = 2*JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(6) + 120;
-    DynamicJsonDocument doc(capacity);
-    String str = http.getString();
-    deserializeJson(doc, str);//tjio check
-
-    auto error = deserializeJson(doc, str);//tjio check 
-
-    if (doc["data"]["v1Device"].is<JsonObject>()) {
-      String r_vol_max = doc["data"]["v1Device"]["r_volume_max"];
-      String r_vol_now = doc["data"]["v1Device"]["r_volume_now"];
-      String r_adrop = doc["data"]["v1Device"]["r_adrop"];
-      String ordered_gtt = doc["data"]["v1Device"]["ordered_gtt"];
-      String min_gtt = doc["data"]["v1Device"]["min_gtt"];
-      String max_gtt = doc["data"]["v1Device"]["max_gtt"];
-      g_RingerData.r_volume_max = r_vol_max.toInt();
-      g_RingerData.r_volume_now = atof(r_vol_now.c_str());
-      g_RingerData.r_adrop = r_adrop.toFloat();
-      g_RingerData.ordered_gtt = ordered_gtt.toInt();
-      g_RingerData.min_gtt = min_gtt.toInt();
-      g_RingerData.max_gtt = max_gtt.toInt();
-      g_RingerData.is_monitoring = g_RingerData.r_volume_max > 0;
-      
-      g_RingerData.drop_cnt = (g_RingerData.r_volume_max - g_RingerData.r_volume_now) / g_RingerData.r_adrop;
-      printf("%d %f %f\n", g_RingerData.r_volume_max, g_RingerData.r_volume_now, g_RingerData.r_adrop );
-      save_ml(r_vol_max);
-      Serial.println(str);
-      print_data();
-      x = 1;
-    }
-    else
-    {
-      Serial.print("Graphql Error ");
-      Serial.println(str);
-    }
- */
-    // if...(){ 
-
     StaticJsonBuffer<200> jsonBuffer;
     String str = http.getString();
     JsonObject &root = jsonBuffer.parseObject(str);
+    Serial.print("get_info value:");
     Serial.println(str);
     if  (root.success() && !root["errors"].is<JsonObject>()) {
-//      String r_vol_max = root["data"]["v1Monitoring"]["r_volume_max"];
-//      String r_vol_now = root["data"]["v1Monitoring"]["r_volume_now"];
-
       String r_vol_max = root["v1Monitoring"]["r_volume_max"];
       String r_vol_now = root["v1Monitoring"]["r_volume_now"];
       
       printf("v1Monitoring volume max : %d\n", r_vol_max.toInt());
-      g_RingerData.r_volume_max = r_vol_max.toInt();
+      
+      if(r_vol_max.toInt()){
+        g_RingerData.r_volume_max = r_vol_max.toInt();
+      }
+     Serial.print("get_info save value:");
+     Serial.println(g_RingerData.r_volume_max);     
       x = 1;
-      Serial.print("Str값:");
-      Serial.print(str);
     } else {
       Serial.print("Error");
 
@@ -1394,7 +1315,7 @@ void loop()
 
   if (wps_key.pressed == 1)
   {
- //   get_info();//r_vol_max  저장  tjio 수정
+    get_info();//r_vol_max  저장  tjio 수정
     wps_key.pressed = 0;
   }
 
@@ -1425,34 +1346,37 @@ void loop()
     upload_counter++;// 0부터 증가 
 
     
-    if (upload_counter > 29 || (is_alert_report && upload_counter > 4))
+    if (upload_counter > 29 || (is_alert_report && upload_counter > 4))//29
     {
       upload_counter = 0;
       printf("SIGNAL_CHK:%d\n",SIGNAL_CHK);
       printf("server_connected:%d\n",server_connected); 
       printf("upload_counter:%d\n",upload_counter);
       Serial.println(g_RingerData.r_volume_max);
-      server_connected=1;
+ //     server_connected=1;
     }
 
 
     sec_flag = 0;
-    if (upload_counter == 0 && server_connected)
+//    if (upload_counter == 0 && server_connected)
+    if (upload_counter == 0)
     {
-      /*
       if (g_RingerData.r_volume_max == 0) {//값이 설정되지 않으면 
- //       server_connected = get_info();//연결 1 이 되면 connected  표시  tjio 수정 
+      server_connected = get_info();//연결 1 이 되면 connected  표시  tjio 수정 
       }
       else if (send_data() == 1) {
         Serial.println("Send data 송신");
         err_cnt = 0;
         
-      }*/
+      } 
+       
+      /*
       if (send_data() == 1) {
         Serial.println("Send data 송신");
         err_cnt = 0;
         
       }
+      */
       else {
           err_cnt++;
           printf("err_cnt=%lu\n", err_cnt);
