@@ -115,7 +115,7 @@ typedef struct ringer
 {
   uint16_t r_volume_max;// 설정용량
   float r_volume_now;//남은용량
-  float r_adrop;
+  float r_adrop;// default 0.05
   float drop_per_sec;
   float last_drop_per_sec;
   uint32_t nBat;
@@ -427,10 +427,6 @@ void init_tft()
 void display_main()
 {
   uint16_t i;
-
-  old_max = read_ml();
-  if (old_max == 0) old_max = 1;
-  //printf("display_main() old_max 2 : %lu \n", old_max);
 
   //총수액용량
   tft.setFont(&FreeSerifItalic9pt7b);
@@ -955,56 +951,7 @@ void read_sn()
     return;
  }
 
-/**
-   AP_ADDR 에서 값을 읽어와서 default ap 에 저장
-*/
-void read_ap()
-{
-  int i;
-  char c[SSID_SIZE + 1] = {0};
-  for (i = 0; i < SSID_SIZE; i++)
-  {
-    c[i] = readEEPROM(AP_ADDR + i);
-    if (c[0] == 0xff)
-    {
-      //printf("default_ap=%s\n",default_ap);
-      return;
-    }
-  }
-  memcpy(default_ap, c, sizeof(c));
-  Serial.print("read default ap ");
-  Serial.println(c);
-}
 
-void save_ml(String str) {
-  char value[ML_SIZE + 1] = {0,};
-  str.toCharArray(value, str.length() + 1);
-  save_ml(value);
-}
-
-void save_ml(char *s)
-{
-  int i;
-  char buf[ML_SIZE + 1] = {0};
-  for (i = 0; i < ML_SIZE; i++)
-  {
-    writeEEPROM(ML_ADDR + i, *s);
-    s++;
-  }
-}
-
-int read_ml()
-{
-  int i;
-  char buf[ML_SIZE + 1] = {0};
-  for (i = 0; i < ML_SIZE; i++)
-  {
-    buf[i] = readEEPROM(ML_ADDR + i);
-  }
-  String str = String(buf);
-  Serial.println(str);
-  return str.toInt();
-}
 
 void STC3115_write(byte addr, byte d)
 {
