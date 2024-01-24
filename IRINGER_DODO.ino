@@ -423,13 +423,13 @@ void init_tft()
   tft.setTextSize(1);
 }
 
-
+//초기 한번만 설정 
 void display_main()
 {
   uint16_t i;
 
-  old_max = read_ml();
-  if (old_max == 0) old_max = 1;
+ // old_max = read_ml();
+ // if (old_max == 0) old_max = 1;
   //printf("display_main() old_max 2 : %lu \n", old_max);
 
   //총수액용량
@@ -571,8 +571,8 @@ void print_data() // 화면 표시
 
     tft.setTextColor(ST7735_BLUE);
     tft.setCursor(FIRST_X + 58, FIRST_Y + 90);
-    EEPROM.put(ML_ADDR, old_max);
-    EEPROM.commit();
+//    EEPROM.put(ML_ADDR, old_max);
+//    EEPROM.commit();
     print_num4(old_max);
     
   }
@@ -658,50 +658,6 @@ void print_data() // 화면 표시
   }
 }
 
-void writeEEPROM(unsigned int eeaddress, byte data)
-{
-  Wire.beginTransmission(0x50);
-  Wire.write((int)(eeaddress >> 8));   // MSB
-  Wire.write((int)(eeaddress & 0xFF)); // LSB
-  Wire.write(data);
-  Wire.endTransmission();
-
-  delay(5);
-}
-
-byte readEEPROM(unsigned int eeaddress)
-{
-  byte rdata = 0xFF;
-
-  Wire.beginTransmission(0x50);
-  Wire.write((int)(eeaddress >> 8));   // MSB
-  Wire.write((int)(eeaddress & 0xFF)); // LSB
-  Wire.endTransmission();
-
-  Wire.requestFrom(0x50, 1);
-
-  if (Wire.available())
-    rdata = Wire.read();
-
-  return rdata;
-}
-
-byte clearEEPROM() {
-  for (int i = 0; i < HOST_ADDR + HOST_URL_LENGTH; i++) {
-    writeEEPROM(i, 0);
-  }
-}
-
-void test_eeprom()
-{
-  //writeEEPROM(0, 123); delay(10);
-  //Serial.println(readEEPROM(0), DEC);
-  writeEEPROM(0, 0xff);
-  Serial.println(readEEPROM(0), DEC);
-  Serial.println("Done");
-  while (1)
-    ;
-}
 
 
 byte search_n_connect()
@@ -838,8 +794,8 @@ void setup() //su
   }
 
   if (wifiMulti.run() == WL_CONNECTED) {
-//    server_connected = get_info();// tjio 수정 
-    send_data();
+    server_connected = send_data();;// tjio 수정 
+    
 //    get_list();//tjio remove 
   }
   // memset(ap_list, 0, sizeof(ap_list));
@@ -850,7 +806,7 @@ byte connect_ap(char* ap, char* pw)
 {
   printf("func connect_ap connect to %s\n", ap);
   wifiMulti.addAP(ap, pw);
-   Serial.print("Try to connect:tjio ");
+  Serial.print("Try to connect:tjio ");
   Serial.println(ap);
   return 0;
 }
@@ -877,7 +833,6 @@ bool check_need_to_update(float drop_speed) {
  **/
 bool calc_drop()
 {
-  Serial.println("Drop  count start");
   float a;
   float drop_speed = 0;
   bool need_to_update = false;
@@ -955,56 +910,10 @@ void read_sn()
     return;
  }
 
-/**
-   AP_ADDR 에서 값을 읽어와서 default ap 에 저장
-*/
-void read_ap()
-{
-  int i;
-  char c[SSID_SIZE + 1] = {0};
-  for (i = 0; i < SSID_SIZE; i++)
-  {
-    c[i] = readEEPROM(AP_ADDR + i);
-    if (c[0] == 0xff)
-    {
-      //printf("default_ap=%s\n",default_ap);
-      return;
-    }
-  }
-  memcpy(default_ap, c, sizeof(c));
-  Serial.print("read default ap ");
-  Serial.println(c);
-}
 
-void save_ml(String str) {
-  char value[ML_SIZE + 1] = {0,};
-  str.toCharArray(value, str.length() + 1);
-  save_ml(value);
-}
 
-void save_ml(char *s)
-{
-  int i;
-  char buf[ML_SIZE + 1] = {0};
-  for (i = 0; i < ML_SIZE; i++)
-  {
-    writeEEPROM(ML_ADDR + i, *s);
-    s++;
-  }
-}
 
-int read_ml()
-{
-  int i;
-  char buf[ML_SIZE + 1] = {0};
-  for (i = 0; i < ML_SIZE; i++)
-  {
-    buf[i] = readEEPROM(ML_ADDR + i);
-  }
-  String str = String(buf);
-  Serial.println(str);
-  return str.toInt();
-}
+
 
 void STC3115_write(byte addr, byte d)
 {
@@ -1132,7 +1041,6 @@ void STC3115_get_id()
 
 int post_graphql_query(char* body, char* query) {
   char graphql_url[HOST_URL_LENGTH + 8] = { 0, };
-//  sprintf(graphql_url, "%sgraphql/", host_url);
   sprintf(graphql_url, "%smonitoring", host_url);//23.1.17 수정
   
   http.begin(graphql_url);
@@ -1141,17 +1049,15 @@ int post_graphql_query(char* body, char* query) {
   sprintf(body, "{ \"query\": \"%s\" }", query);
 
   printf("POST %s\n %s\n", graphql_url, body);
-  Serial.print("바디:");
-  Serial.println(body);
   return http.POST(body);
 }
 
-  uint16_t r_volume_max_init;
-  float r_volume_now_init;
-  bool init_send=0;
+
+//  uint32_t new_drop_cnt;// for test
 
 byte send_data() //sd
 {
+  Serial.println("Send data  함수를 실행 하였습니다.");
   byte x = 1;
   char query[200] = { 0,};
   char body[220] = { 0, };
@@ -1174,6 +1080,7 @@ byte send_data() //sd
      Serial.println(g_RingerData.drop_cnt);
      Serial.print("g_RingerData.r_adrop :");
      Serial.println(g_RingerData.r_adrop);
+//     new_drop_cnt=g_RingerData.drop_cnt-new_drop_cnt;// tjio 수정 
   sprintf(
     query,
     "{ \\\"v1Monitoring\\\" : { \\\"sn\\\": \\\"%s\\\", \\\"injectedAmount\\\": %f, \\\"gtt\\\": %f, \\\"battery\\\": %d, \\\"restMinute\\\": %d } }",
@@ -1181,8 +1088,7 @@ byte send_data() //sd
   );//Mutation: 저장된 데이터 수정하기 Create: 새로운 데이터 생성 Update: 기존의 데이터 수정 Delete: 기존의 데이터 삭제
  
  int httpCode = post_graphql_query(body, query);
-    Serial.print("httpCode:");
-    Serial.println(httpCode);
+
   if (httpCode == 200)//400 잘못요청 401 권한없음,403 금지됨,404 찾을수 없음,500 서버오류/*  { 불가
   {
 /*  {
@@ -1201,12 +1107,12 @@ byte send_data() //sd
       x = 0;
  {    } 
   }*/
-server_connected=1;
+    server_connected=1;
     StaticJsonBuffer<200> jsonBuffer;
     String str = http.getString();
-     Serial.print("송신후 query :");
+     Serial.print("수신  query :");
      Serial.println(str);
-     Serial.print("송신후 body :");
+     Serial.print("수신  body  :");
      Serial.println(body);
     JsonObject &root = jsonBuffer.parseObject(str);
     if  (root.success() && !root["errors"].is<JsonObject>()) {
@@ -1215,11 +1121,12 @@ server_connected=1;
       String r_vol_max = root["v1Monitoring"]["r_volume_max"];//23.1.17 수정
       String r_vol_now = root["v1Monitoring"]["r_volume_now"];
       printf("v1Monitoring volume max : %d\n", r_vol_max.toInt());
+      printf("v1Monitoring volume now : %f\n", r_vol_now.toFloat());
       
       if(r_vol_max.toInt()){
         g_RingerData.r_volume_max = r_vol_max.toInt();
       }
-      
+//      new_drop_cnt=g_RingerData.drop_cnt;//갱신
       x = 1;
     } else {
       Serial.print("Error");
@@ -1230,30 +1137,40 @@ server_connected=1;
   
   else
   {
+//    new_drop_cnt=g_RingerData.drop_cnt;//복귀
+    
     Serial.print("send_data error with code ");
     Serial.println(httpCode);
     
     x = 0;
   }
   http.end();
+    Serial.println("Send data  함수를 종료  하였습니다.");
   return x;
 }
 
 byte get_info()
 {
- 
+  Serial.println("get_info 함수를 실행 하였습니다.");
   byte x = 0;
   char query[200] = { 0, };// Your GraphQL query
   char body[220] = {0, };//Your body data for the POST request
  
 //  sprintf(query, "query { v1Device(sn:\\\"%s\\\", battery: %d){ r_volume_max, r_volume_now, r_adrop, ordered_gtt, min_gtt, max_gtt }}", serial_num, g_RingerData.nBat);
-
+// new_drop_cnt=g_RingerData.drop_cnt-new_drop_cnt;// tjio 수정 
   sprintf(query, "{ \\\"v1Monitoring\\\" : { \\\"sn\\\": \\\"%s\\\", \\\"injectedAmount\\\": %f, \\\"gtt\\\": %f, \\\"battery\\\": %d, \\\"restMinute\\\": %d } }",
     serial_num, g_RingerData.drop_cnt * g_RingerData.r_adrop, g_RingerData.drop_per_sec * 60.0, g_RingerData.nBat, g_RingerData.rest_min
   );//Mutation: 저장된 데이터 수정하기 Create: 새로운 데이터 생성 Update: 기존의 데이터 수정 Delete: 기존의 데이터 삭제
  
   
   int httpCode = post_graphql_query(body, query);//body 쿼리를 포함하는 문자열 배열 query는 쿼리이름 
+
+     Serial.print("g_RingerData.drop_cnt : ");//TJIO 수정 
+     Serial.println(g_RingerData.drop_cnt); 
+     
+     Serial.print("g_RingerData.drop_cnt*g_RingerData.r_adrop(injectedAmount)  : ");//TJIO 수정 
+     Serial.println(g_RingerData.drop_cnt*g_RingerData.r_adrop); 
+         
      Serial.print("GET_INFO()실행후:");//TJIO 수정 
      Serial.println(body);//TJIO 수정 
      
@@ -1262,7 +1179,7 @@ byte get_info()
     StaticJsonBuffer<200> jsonBuffer;
     String str = http.getString();
     JsonObject &root = jsonBuffer.parseObject(str);
-    Serial.print("get_info value:");
+    Serial.print("get_info rcv value:");
     Serial.println(str);
     if  (root.success() && !root["errors"].is<JsonObject>()) {
       String r_vol_max = root["v1Monitoring"]["r_volume_max"];
@@ -1273,6 +1190,8 @@ byte get_info()
       if(r_vol_max.toInt()){
         g_RingerData.r_volume_max = r_vol_max.toInt();
       }
+      
+ //    new_drop_cnt=g_RingerData.drop_cnt;//갱신
      Serial.print("get_info save value:");
      Serial.println(g_RingerData.r_volume_max);     
       x = 1;
@@ -1284,6 +1203,8 @@ byte get_info()
   }
   else
   {
+//    new_drop_cnt=g_RingerData.drop_cnt;//복귀
+    
     Serial.print("HTTP Error ");
     Serial.println(httpCode);
     x = 0;
@@ -1294,6 +1215,7 @@ byte get_info()
   if (x == 0) {
     Serial.println("Fail to get info");
   }
+    Serial.println("get_info 함수를 종료 하였습니다.");
   return x;
 }
 
@@ -1335,85 +1257,86 @@ void loop()
     if (g_RingerData.drop_cnt < 50 && g_RingerData.drop_cnt % 5 == 0) {
       is_alert_report = true;
     }
-
     
     if (!g_RingerData.is_monitoring) {
       is_alert_report = false;
     }
-
     
     print_data();
+    
     upload_counter++;// 0부터 증가 
 
     
     if (upload_counter > 29 || (is_alert_report && upload_counter > 4))//29
     {
       upload_counter = 0;
-      printf("SIGNAL_CHK:%d\n",SIGNAL_CHK);
-      printf("server_connected:%d\n",server_connected); 
-      printf("upload_counter:%d\n",upload_counter);
-      Serial.println(g_RingerData.r_volume_max);
- //     server_connected=1;
     }
-
-
+    
     sec_flag = 0;
-//    if (upload_counter == 0 && server_connected)
-    if (upload_counter == 0)
+    
+     if (upload_counter == 0 && server_connected)
+//    if (upload_counter == 0)
     {
-      if (g_RingerData.r_volume_max == 0) {//값이 설정되지 않으면 
-      server_connected = get_info();//연결 1 이 되면 connected  표시  tjio 수정 
-      }
-      else if (send_data() == 1) {
-        Serial.println("Send data 송신");
-        err_cnt = 0;
         
+     Serial.print("loop에서 g_RingerData.drop_cnt : ");//TJIO 수정 
+     Serial.println(g_RingerData.drop_cnt);
+            
+
+     if (send_data() == 1) {
+         err_cnt = 0;
       } 
-       
-      /*
-      if (send_data() == 1) {
-        Serial.println("Send data 송신");
-        err_cnt = 0;
-        
-      }
-      */
       else {
           err_cnt++;
           printf("err_cnt=%lu\n", err_cnt);
-          if (err_cnt == 5)
+          if (err_cnt == 5)// 5번 전송 실패면 재접속 
           {
             err_cnt = 0;
             server_connected = false;
             thirty_counter = 0;
           }
         }
-      // Deep-Sleep 시작
-     }
+      }
+      
+       if(server_connected){
+             if(!(upload_counter%5)){
+                Serial.println("<--upload_counter-->");    
+                Serial.print(upload_counter);
+              }
+              else Serial.print(upload_counter);
+      }
 
     //30초마다 와이파이 체크   
+
     if (!server_connected && thirty_counter == 0)// 서버 연결이 끊어졌고 0초 일때마다 진행 
     {
+      Serial.println("서버가 끊어져서 30초후 재접속 .");
+      
       if ((wifiMulti.run() == WL_CONNECTED))
       {
         if (SIGNAL_CHK < 1)//0 Wifi 연결 안됨 1 Wifi 연결됨 2 서버 연결 됨
         {
           SIGNAL_CHK = 1;
+          Serial.println("WiFi 가 연결 되었습니다.");
         }
-//        server_connected = get_info();//tjio 수정 
+          server_connected =send_data(); 
       }
       else // 연결 안된 경우
       {
         
         SIGNAL_CHK = 0;
+        Serial.println("WiFi 가 끊어 졌습니다.");
         connect_ap(default_ap, default_pw);
     
       }  
     }   
     
 
-    if (thirty_counter < 30)//30 초 마다 와이파이 검색을 위해 
+    if (!server_connected && (thirty_counter < 30))//30 초 마다 와이파이 검색을 위해 
     {
       thirty_counter++;
+
+      Serial.print("WiFi Wating : ");
+      Serial.println(thirty_counter);
     }
     else
     {
